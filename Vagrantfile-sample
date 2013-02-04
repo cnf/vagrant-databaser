@@ -1,0 +1,42 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant::Config.run do |config|
+  # Every Vagrant virtual environment requires a box to build off of.
+  config.vm.box = "precise32"
+  config.vm.box_url = "http://files.vagrantup.com/precise32.box"
+  config.vm.customize ["modifyvm", :id, "--memory", 512]
+  config.vm.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+  config.vm.host_name = "database"
+
+  config.vm.forward_port 3306, 3306
+  config.vm.forward_port 5432, 5432
+
+  config.vm.provision :chef_solo do |chef|
+    chef.cookbooks_path = [ "cookbooks", "~/.chef/cookbooks/" ]
+    chef.add_recipe("apt")
+    chef.add_recipe("mysql::server")
+    chef.add_recipe("postgresql::server")
+    chef.add_recipe("database_setup::mysql")
+    chef.json = {
+      mysql: {
+        server_root_password: "password",
+        server_repl_password: "password",
+        server_debian_password: "password",
+        databases: ['devdb'],
+      },
+      postgresql: {
+        password: {
+          postgres: "password"
+        },
+        config: {
+          listen_addresses: "*",
+        },
+        pg_hba: [
+          { type: 'local', db: 'all', user: 'postgres', addr: nil, method: 'ident'},
+          { type: 'host', db: 'all', user: 'all', addr: '10.0.0.0/16', method: 'trust'}
+        ]
+      }
+    }
+  end
+end
